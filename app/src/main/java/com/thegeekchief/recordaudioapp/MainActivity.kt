@@ -55,12 +55,12 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun startRecording() {
-        outputFile = createOutputFile(".wav") // Specify the file extension
+        outputFile = createOutputFile(".mp3") // Specify the file extension
 
         mediaRecorder = MediaRecorder()
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP) // Use 3GPP format for WAV
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB) // Use AMR_NB encoder for WAV
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT)
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT)
         mediaRecorder.setOutputFile(outputFile.absolutePath)
 
         try {
@@ -87,17 +87,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveRecordingToMediaStore() : Uri? {
+    private fun saveRecordingToMediaStore(): Uri? {
         try {
             val contentResolver = contentResolver
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
 
             val values = ContentValues().apply {
-                put(MediaStore.Audio.Media.DISPLAY_NAME, "AUDIO_$timeStamp.wav") // Specify the file extension
-                put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav") // Use WAV MIME type
+                put(
+                    MediaStore.Audio.Media.DISPLAY_NAME, "AUDIO_$timeStamp.mp3"
+                ) // Specify the file extension
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp3") // Use MP3 MIME type
             }
 
-            val contentUri = contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+            val contentUri =
+                contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
 
             val outputStream = contentUri?.let { contentResolver.openOutputStream(it) }
 
@@ -111,9 +114,7 @@ class MainActivity : AppCompatActivity() {
             val result = contentUri.toString()
 
             Toast.makeText(
-                this@MainActivity,
-                "File saved successfully: $result",
-                Toast.LENGTH_SHORT
+                this@MainActivity, "File saved successfully: $result", Toast.LENGTH_SHORT
             ).show()
 
             return contentUri
@@ -142,7 +143,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkPermissions(): Boolean {
         for (permission in permissions) {
-            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this, permission
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 return false
             }
         }
