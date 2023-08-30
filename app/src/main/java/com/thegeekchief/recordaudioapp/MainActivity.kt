@@ -60,7 +60,12 @@ class MainActivity : AppCompatActivity() {
         mediaRecorder = MediaRecorder()
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT)
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT)
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_WB)
+
+        // Set the audio sampling rate and bit rate for improved quality
+        mediaRecorder.setAudioSamplingRate(44100) // 44.1 kHz is a common sample rate
+        mediaRecorder.setAudioEncodingBitRate(128000) // 128 kbps for better quality
+
         mediaRecorder.setOutputFile(outputFile.absolutePath)
 
         try {
