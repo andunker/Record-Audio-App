@@ -1,24 +1,29 @@
 package com.thegeekchief.recordaudioapp
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
-import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Button
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.io.File
-import java.io.IOException
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var startRecordingButton: Button
     private lateinit var mediaRecorder: MediaRecorder
-    private var isRecording = false
+    private var isRecording: Boolean = false
+    private lateinit var outputFile: File
 
     private val permissions = arrayOf(
         Manifest.permission.RECORD_AUDIO
@@ -26,6 +31,7 @@ class MainActivity : AppCompatActivity() {
 
     private val requestCode = 1
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -43,39 +49,79 @@ class MainActivity : AppCompatActivity() {
                     requestPermissions()
                 }
             }
-            isRecording = !isRecording
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun startRecording() {
-        val outputFile = createOutputFile()
-        if (outputFile != null) {
-            mediaRecorder = MediaRecorder()
-            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-            mediaRecorder.setOutputFile(outputFile.absolutePath)
+        outputFile = createOutputFile()
 
-            try {
-                mediaRecorder.prepare()
-                mediaRecorder.start()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
+        mediaRecorder = MediaRecorder()
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+        mediaRecorder.setOutputFile(outputFile.absolutePath)
+
+        try {
+            mediaRecorder.prepare()
+            mediaRecorder.start()
+            isRecording = true
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     private fun stopRecording() {
-        mediaRecorder.apply {
-            stop()
-            release()
+        try {
+            if (isRecording) {
+                mediaRecorder.stop()
+                mediaRecorder.reset()
+                mediaRecorder.release()
+                saveRecordingToMediaStore()
+                isRecording = false
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    private fun createOutputFile(): File? {
+    private fun saveRecordingToMediaStore() {
+        try {
+            val contentResolver = contentResolver
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+
+            val values = ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, "AUDIO_$timeStamp.mp4")
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
+            }
+
+            val contentUri = contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+
+            val outputStream = contentUri?.let { contentResolver.openOutputStream(it) }
+
+            val audioData = outputFile.readBytes()
+
+            if (audioData.isNotEmpty()) {
+                outputStream?.write(audioData)
+                outputStream?.close()
+            }
+
+            val result = contentUri.toString()
+
+            Toast.makeText(
+                this@MainActivity,
+                "File saved successfully: $result",
+                Toast.LENGTH_SHORT
+            ).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+
+    private fun createOutputFile(): File {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val storageDir = getExternalFilesDir(Environment.DIRECTORY_MUSIC)
-        return File.createTempFile("AUDIO_${timeStamp}_", ".3gp", storageDir)
+        return File.createTempFile("AUDIO_${timeStamp}_", ".mp4")
     }
 
     private fun checkPermissions(): Boolean {
