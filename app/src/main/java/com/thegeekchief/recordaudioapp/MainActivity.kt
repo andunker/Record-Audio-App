@@ -3,6 +3,7 @@ package com.thegeekchief.recordaudioapp
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
@@ -26,6 +27,9 @@ class MainActivity : AppCompatActivity() {
     private var isRecording: Boolean = false
     private lateinit var outputFile: File
 
+    private lateinit var playRecordingButton: Button
+    private lateinit var mediaPlayer: MediaPlayer
+
     private val permissions = arrayOf(
         Manifest.permission.RECORD_AUDIO
     )
@@ -38,18 +42,26 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         startRecordingButton = findViewById(R.id.startRecordingButton)
+        playRecordingButton = findViewById(R.id.playRecordingButton)
+
         startRecordingButton.setOnClickListener {
             if (isRecording) {
                 stopRecording()
                 startRecordingButton.text = "Start Recording"
+                playRecordingButton.isEnabled = true // Enable the play button
             } else {
                 if (checkPermissions()) {
                     startRecording()
                     startRecordingButton.text = "Stop Recording"
+                    playRecordingButton.isEnabled = false // Disable the play button
                 } else {
                     requestPermissions()
                 }
             }
+        }
+
+        playRecordingButton.setOnClickListener {
+            playRecording()
         }
     }
 
@@ -144,6 +156,23 @@ class MainActivity : AppCompatActivity() {
     private fun createOutputFile(fileExtension: String): File {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         return File.createTempFile("AUDIO_${timeStamp}_", fileExtension)
+    }
+
+    private fun playRecording() {
+        if (outputFile.exists()) {
+            mediaPlayer = MediaPlayer()
+            mediaPlayer.setDataSource(outputFile.absolutePath)
+            mediaPlayer.prepare()
+            mediaPlayer.start()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.stop()
+        }
+        mediaPlayer.release()
     }
 
     private fun checkPermissions(): Boolean {
