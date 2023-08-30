@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
                 stopRecording()
                 startRecordingButton.text = "Start Recording"
                 playRecordingButton.isEnabled = true // Enable the play button
+                playRecording() // Play sound after stop recording
             } else {
                 if (checkPermissions()) {
                     startRecording()
