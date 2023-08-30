@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -54,12 +55,12 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun startRecording() {
-        outputFile = createOutputFile()
+        outputFile = createOutputFile(".wav") // Specify the file extension
 
         mediaRecorder = MediaRecorder()
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP) // Use 3GPP format for WAV
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB) // Use AMR_NB encoder for WAV
         mediaRecorder.setOutputFile(outputFile.absolutePath)
 
         try {
@@ -77,7 +78,8 @@ class MainActivity : AppCompatActivity() {
                 mediaRecorder.stop()
                 mediaRecorder.reset()
                 mediaRecorder.release()
-                saveRecordingToMediaStore()
+                val contentUri = saveRecordingToMediaStore()
+                val filePath = contentUri?.let { getFilePathFromContentUri(it) }
                 isRecording = false
             }
         } catch (e: Exception) {
@@ -85,14 +87,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveRecordingToMediaStore() {
+    private fun saveRecordingToMediaStore() : Uri? {
         try {
             val contentResolver = contentResolver
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
 
             val values = ContentValues().apply {
-                put(MediaStore.Audio.Media.DISPLAY_NAME, "AUDIO_$timeStamp.mp4")
-                put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
+                put(MediaStore.Audio.Media.DISPLAY_NAME, "AUDIO_$timeStamp.wav") // Specify the file extension
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav") // Use WAV MIME type
             }
 
             val contentUri = contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
@@ -113,15 +115,29 @@ class MainActivity : AppCompatActivity() {
                 "File saved successfully: $result",
                 Toast.LENGTH_SHORT
             ).show()
+
+            return contentUri
         } catch (e: Exception) {
             e.printStackTrace()
+            return null
         }
     }
 
+    private fun getFilePathFromContentUri(contentUri: Uri): String? {
+        val projection = arrayOf(MediaStore.Audio.Media.DATA)
+        val cursor = contentResolver.query(contentUri, projection, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val columnIndex = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                return it.getString(columnIndex)
+            }
+        }
+        return null
+    }
 
-    private fun createOutputFile(): File {
+    private fun createOutputFile(fileExtension: String): File {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        return File.createTempFile("AUDIO_${timeStamp}_", ".mp4")
+        return File.createTempFile("AUDIO_${timeStamp}_", fileExtension)
     }
 
     private fun checkPermissions(): Boolean {
