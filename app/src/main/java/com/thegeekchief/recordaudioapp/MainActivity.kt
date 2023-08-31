@@ -117,23 +117,26 @@ class MainActivity : AppCompatActivity() {
                 put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp3") // Use MP3 MIME type
             }
 
+
             val contentUri =
                 contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
 
-            val outputStream = contentUri?.let { contentResolver.openOutputStream(it) }
+            // if you don't want to save the file in the device yo can comment these lines
+            /*            val outputStream = contentUri?.let { contentResolver.openOutputStream(it) }
 
-            val audioData = outputFile.readBytes()
+                        val audioData = outputFile.readBytes()
 
-            if (audioData.isNotEmpty()) {
-                outputStream?.write(audioData)
-                outputStream?.close()
-            }
+                        if (audioData.isNotEmpty()) {
+                            outputStream?.write(audioData)
+                            outputStream?.close()
+                        }*/
+            //
 
             val result = contentUri.toString()
 
-            Toast.makeText(
+/*            Toast.makeText(
                 this@MainActivity, "File saved successfully: $result", Toast.LENGTH_SHORT
-            ).show()
+            ).show()*/
 
             return contentUri
         } catch (e: Exception) {
