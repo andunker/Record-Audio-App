@@ -1,6 +1,7 @@
 package com.thegeekchief.recordaudioapp
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
@@ -9,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.view.MotionEvent
 import android.widget.Button
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -36,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     private val requestCode = 1
 
+    @SuppressLint("ClickableViewAccessibility")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,21 +47,25 @@ class MainActivity : AppCompatActivity() {
         startRecordingButton = findViewById(R.id.startRecordingButton)
         playRecordingButton = findViewById(R.id.playRecordingButton)
 
-        startRecordingButton.setOnClickListener {
-            if (isRecording) {
-                stopRecording()
-                startRecordingButton.text = "Start Recording"
-                playRecordingButton.isEnabled = true // Enable the play button
-                playRecording() // Play sound after stop recording
-            } else {
-                if (checkPermissions()) {
-                    startRecording()
-                    startRecordingButton.text = "Stop Recording"
-                    playRecordingButton.isEnabled = false // Disable the play button
-                } else {
-                    requestPermissions()
+        startRecordingButton.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (checkPermissions()) {
+                        startRecording()
+                        startRecordingButton.text = "Stop Recording"
+                        playRecordingButton.isEnabled = false // Disable the play button
+                    } else {
+                        requestPermissions()
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    stopRecording()
+                    startRecordingButton.text = "Start Recording"
+                    playRecordingButton.isEnabled = true // Enable the play button
+                    playRecording() // Play sound after stop recording
                 }
             }
+            true
         }
 
         playRecordingButton.setOnClickListener {
@@ -96,8 +103,8 @@ class MainActivity : AppCompatActivity() {
                 mediaRecorder.stop()
                 mediaRecorder.reset()
                 mediaRecorder.release()
-                val contentUri = saveRecordingToMediaStore()
-                val filePath = contentUri?.let { getFilePathFromContentUri(it) }
+                //val contentUri = saveRecordingToMediaStore()
+                //val filePath = contentUri?.let { getFilePathFromContentUri(it) }
                 isRecording = false
             }
         } catch (e: Exception) {
@@ -117,7 +124,6 @@ class MainActivity : AppCompatActivity() {
                 put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp3") // Use MP3 MIME type
             }
 
-
             val contentUri =
                 contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
 
@@ -131,10 +137,9 @@ class MainActivity : AppCompatActivity() {
                             outputStream?.close()
                         }*/
             //
-
             val result = contentUri.toString()
 
-/*            Toast.makeText(
+            /*            Toast.makeText(
                 this@MainActivity, "File saved successfully: $result", Toast.LENGTH_SHORT
             ).show()*/
 
@@ -163,32 +168,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playRecording() {
-        if (outputFile.exists()) {
-            mediaPlayer = MediaPlayer()
-            mediaPlayer.setDataSource(outputFile.absolutePath)
-            mediaPlayer.prepare()
-            mediaPlayer.start()
+        try {
+            if (outputFile.exists()) {
+                mediaPlayer = MediaPlayer()
+                mediaPlayer.setDataSource(outputFile.absolutePath)
+                mediaPlayer.prepare()
+                mediaPlayer.start()
+                mediaPlayer.setOnCompletionListener {
+                    mediaPlayer.release()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (mediaPlayer.isPlaying) {
-            mediaPlayer.stop()
+        if (this::mediaPlayer.isInitialized) {
+            if (mediaPlayer.isPlaying) {
+                mediaPlayer.stop()
+            }
+            mediaPlayer.release()
         }
-        mediaPlayer.release()
     }
 
     private fun checkPermissions(): Boolean {
-        for (permission in permissions) {
-            if (ContextCompat.checkSelfPermission(
-                    this, permission
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                return false
-            }
+        return permissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
-        return true
     }
 
     private fun requestPermissions() {
